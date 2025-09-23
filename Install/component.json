@@ -85,5 +85,14 @@
 		"seq" : "0"
 	},
 	"settings" : [],
-	"widgets" : []
+	"widgets" : 
+	[
+		{
+			"name" : "watchlist",
+			"method" : "watchlist",
+			"multiple" : false,
+			"max_multiple" : "",
+			"settings" : []
+		}
+	]
 }
