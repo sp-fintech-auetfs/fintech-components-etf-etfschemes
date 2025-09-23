@@ -88,8 +88,8 @@
 	"widgets" : 
 	[
 		{
-			"name" : "watchlist",
-			"method" : "watchlist",
+			"name" : "ETF watchlist",
+			"method" : "etfWatchlist",
 			"multiple" : false,
 			"max_multiple" : "",
 			"settings" : []

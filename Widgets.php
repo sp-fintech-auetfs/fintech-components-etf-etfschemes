@@ -8,7 +8,7 @@ use System\Base\Providers\ModulesServiceProvider\Modules\Components\ComponentsWi
 
 class Widgets extends ComponentsWidgets
 {
-    public function watchlist($widget, $dashboardWidget)
+    public function etfWatchlist($widget, $dashboardWidget)
     {
         $schemePackage = new EtfSchemes;
 
