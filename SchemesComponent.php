@@ -23,6 +23,8 @@ class SchemesComponent extends BaseComponent
 
     protected $amcs = [];
 
+    protected $watchlists = [];
+
     public function initialize()
     {
         $this->schemesPackage = $this->usePackage(EtfSchemes::class);
@@ -67,6 +69,13 @@ class SchemesComponent extends BaseComponent
             }
         } else {
             $this->view->timeline = false;
+        }
+
+        $this->view->isWatchlist = false;
+        if (isset($this->getData()['watchlists'])) {
+            $postUrl = 'etf/schemes/view/q/watchlists/true';
+
+            $this->view->isWatchlist = true;
         }
 
         if (isset($this->getData()['id'])) {
@@ -172,10 +181,10 @@ class SchemesComponent extends BaseComponent
 
                 $this->view->isInWatchlist = false;
 
-                $watchlists = $this->schemesPackage->getWatchlistByAccountId();
+                $this->watchlists = $this->schemesPackage->getWatchlistByAccountId();
 
-                if ($watchlists && isset($watchlists['schemes'])) {
-                    if (in_array($scheme['id'], $watchlists['schemes'])) {
+                if ($this->watchlists && isset($this->watchlists['schemes'])) {
+                    if (in_array($scheme['id'], $this->watchlists['schemes'])) {
                         $this->view->isInWatchlist = true;
                     }
                 }
@@ -251,15 +260,52 @@ class SchemesComponent extends BaseComponent
                 'link'              => 'etf/schemes/q/custom/true/'
             ];
 
+        $packagesData = [];
         if ($this->request->isPost()) {
-            if (count($this->dispatcher->getParams()) > 0 &&
-                $this->dispatcher->getParams()[0] === 'timeline' &&
-                $this->dispatcher->getParams()[1] !== $this->view->today
-            ) {
-                $conditions = ['conditions' => '-|start_date|lessthanequals|' . $this->dispatcher->getParams()[1] .  '&'];
+            if (count($this->dispatcher->getParams()) > 0) {
+                if ($this->dispatcher->getParams()[0] === 'timeline' &&
+                    $this->dispatcher->getParams()[1] !== $this->view->today
+                ) {
+                    $conditions = ['conditions' => '-|start_date|lessthanequals|' . $this->dispatcher->getParams()[1] .  '&'];
 
-                $urls['view'] = 'etf/schemes/q/timeline/' . $this->dispatcher->getParams()[1] . '/';
-                unset($urls['customNavs']);
+                    $urls['view'] = 'etf/schemes/q/timeline/' . $this->dispatcher->getParams()[1] . '/';
+                    unset($urls['customNavs']);
+                } else if ($this->dispatcher->getParams()[0] === 'watchlists') {
+                    $this->view->isWatchlist = true;
+
+                    if (count($this->watchlists) === 0) {
+                        $this->watchlists = $this->schemesPackage->getWatchlistByAccountId();
+                    }
+
+                    $watchlistsSchemes = [];
+
+                    if ($this->watchlists && count($this->watchlists['schemes']) > 0) {
+                        $this->schemesPackage = $this->usePackage(EtfSchemes::class);
+
+                        $fields = ['id', 'name', 'symbol', 'year_rr', 'two_year_rr', 'three_year_rr', 'five_year_rr', 'seven_year_rr', 'ten_year_rr', 'fifteen_year_rr', 'category_id', 'day_cagr', 'day_trajectory', 'amc_id', 'start_date', 'navs_last_updated'];
+
+                        foreach ($this->watchlists['schemes'] as $schemeId) {
+                            $schemeArr = $this->schemesPackage->getSchemeById((int) $schemeId, false, false, false, false);
+
+                            if ($schemeArr) {
+                                array_walk($fields, function($field) use ($schemeArr, &$watchlistsSchemes) {
+                                    if ($field === 'id') {
+                                        $watchlistsSchemes[$schemeArr['id']] = [];
+                                        $watchlistsSchemes[$schemeArr['id']][$field] = $schemeArr[$field];
+                                    } else {
+                                        if (isset($schemeArr[$field])) {
+                                            $watchlistsSchemes[$schemeArr['id']][$field] = $schemeArr[$field];
+                                        } else {
+                                            $watchlistsSchemes[$schemeArr['id']][$field] = '';
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                    }
+
+                    $packagesData = $watchlistsSchemes;
+                }
             }
         }
 
@@ -278,7 +324,8 @@ class SchemesComponent extends BaseComponent
             controlActions : $controlActions,
             dtReplaceColumnsTitle : ['day_cagr' => '1DTR', 'day_trajectory' => '1D Trend', 'year_rr' => '1YRR', 'two_year_rr' => '2YRR', 'three_year_rr' => '3YRR', 'five_year_rr' => '5YRR', 'seven_year_rr' => '7YRR', 'ten_year_rr' => '10YRR', 'fifteen_year_rr' => '15YRR', 'category_id' => 'category type (ID)', 'amc_id' => 'amc (ID)'],
             dtReplaceColumns : $replaceColumns,
-            dtNotificationTextFromColumn :'name'
+            dtNotificationTextFromColumn :'name',
+            packageData : $packagesData
         );
 
         $this->view->pick('schemes/list');
@@ -286,7 +333,11 @@ class SchemesComponent extends BaseComponent
 
     protected function replaceColumns($dataArr)
     {
-        $watchlists = $this->schemesPackage->getWatchlistByAccountId();
+        if (!$this->view->isWatchlist) {
+            if (count($this->watchlists) === 0) {
+                $this->watchlists = $this->schemesPackage->getWatchlistByAccountId();
+            }
+        }
 
         foreach ($dataArr as $dataKey => &$data) {
             if (count($this->dispatcher->getParams()) > 0 &&
@@ -334,9 +385,11 @@ class SchemesComponent extends BaseComponent
                 $data[$number] = '<span class="text-' . $textColor . '">' . $data[$number] . '</span>';
             }
 
-            if ($watchlists && isset($watchlists['schemes'])) {
-                if (in_array($data['id'], $watchlists['schemes'])) {
-                    $data['name'] = '<sup><i class="fa fas fa-fw fa-star text-info fa-2xs"></i></sup> ' . $data['name'];
+            if (!$this->view->isWatchlist) {
+                if ($this->watchlists && isset($this->watchlists['schemes'])) {
+                    if (in_array($data['id'], $this->watchlists['schemes'])) {
+                        $data['name'] = '<sup><i class="fa fas fa-fw fa-star text-info fa-2xs"></i></sup> ' . $data['name'];
+                    }
                 }
             }
 
