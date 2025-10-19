@@ -55,7 +55,7 @@ class SchemesComponent extends BaseComponent
         $this->view->today = $this->view->timeline = (\Carbon\Carbon::now())->toDateString();
         $postUrl = 'etf/schemes/view';
 
-        if (isset($this->getData()['timeline'])) {
+        if ($this->access->auth->check() && isset($this->getData()['timeline'])) {
             try {
                 $this->view->timeline = (\Carbon\Carbon::parse($this->getData()['timeline']))->toDateString();
 
@@ -72,7 +72,7 @@ class SchemesComponent extends BaseComponent
         }
 
         $this->view->isWatchlist = false;
-        if (isset($this->getData()['watchlists'])) {
+        if ($this->access->auth->check() && isset($this->getData()['watchlists'])) {
             $postUrl = 'etf/schemes/view/q/watchlists/true';
 
             $this->view->isWatchlist = true;
@@ -85,7 +85,7 @@ class SchemesComponent extends BaseComponent
                 $this->view->customNavStartDate = '';
                 $this->view->customNavEndDate = '';
 
-                if (isset($this->getData()['custom']) && $this->getData()['custom'] == true) {
+                if ($this->access->auth->check() && isset($this->getData()['custom']) && $this->getData()['custom'] == true) {
                     $scheme = $this->schemesPackage->getSchemeById((int) $this->access->auth->account()['id'] . $this->getData()['id'], true, true, true, true);
 
                     if (!$scheme) {
@@ -150,7 +150,7 @@ class SchemesComponent extends BaseComponent
                     return;
                 }
 
-                if (isset($this->getData()['timeline']) && $this->view->timeline) {
+                if ($this->access->auth->check() && isset($this->getData()['timeline']) && $this->view->timeline) {
                     $scheme = $this->schemesPackage->getSchemeSnapshotById((int) $this->getData()['id'], $this->getData()['timeline'], true, true);
                 } else {
                     $scheme = $this->schemesPackage->getSchemeById((int) $this->getData()['id'], false, true, true);
@@ -181,11 +181,13 @@ class SchemesComponent extends BaseComponent
 
                 $this->view->isInWatchlist = false;
 
-                $this->watchlists = $this->schemesPackage->getWatchlistByAccountId();
+                if ($this->access->auth->check()) {
+                    $this->watchlists = $this->schemesPackage->getWatchlistByAccountId();
 
-                if ($this->watchlists && isset($this->watchlists['schemes'])) {
-                    if (in_array($scheme['id'], $this->watchlists['schemes'])) {
-                        $this->view->isInWatchlist = true;
+                    if ($this->watchlists && isset($this->watchlists['schemes'])) {
+                        if (in_array($scheme['id'], $this->watchlists['schemes'])) {
+                            $this->view->isInWatchlist = true;
+                        }
                     }
                 }
 
@@ -199,7 +201,7 @@ class SchemesComponent extends BaseComponent
 
         $amcs = msort($this->amcsPackage->getAll()->etfamcs, 'name');
         foreach ($amcs as $amcId => &$amc) {
-            $amc['name'] = $amc['name'] . ' (' . $amc['id'] . ')';
+            $amc['name'] = $amc['name'];
         }
 
         $categories = $this->categoriesPackage->getAll()->etfcategories;
@@ -213,7 +215,7 @@ class SchemesComponent extends BaseComponent
                     unset($categories[$categoryId]);
                 }
 
-                $category['name'] = $parents[$category['parent_id']]['name'] . ': ' . $category['name'] . ' (' . $category['id'] . ')';
+                $category['name'] = $parents[$category['parent_id']]['name'] . ': ' . $category['name'];
             } else {
                 if (!isset($parents[$category['parent_id']])) {
                     $parents[$categoryId] = $categories[$categoryId];
@@ -252,17 +254,19 @@ class SchemesComponent extends BaseComponent
 
         $viewUrl = 'etf/schemes/q/';
         $urls = ['view' => $viewUrl];
-        $urls['customNavs'] =
-            [
-                'title'             => 'Custom Navs',
-                'icon'              => 'money-bill-trend-up',
-                'additionalClass'   => 'custom contentAjaxLink',
-                'link'              => 'etf/schemes/q/custom/true/'
-            ];
+        if ($this->access->auth->check()) {
+            $urls['customNavs'] =
+                [
+                    'title'             => 'Custom Navs',
+                    'icon'              => 'money-bill-trend-up',
+                    'additionalClass'   => 'custom contentAjaxLink',
+                    'link'              => 'etf/schemes/q/custom/true/'
+                ];
+        }
 
         $packagesData = [];
         if ($this->request->isPost()) {
-            if (count($this->dispatcher->getParams()) > 0) {
+            if ($this->access->auth->check() && count($this->dispatcher->getParams()) > 0) {
                 if ($this->dispatcher->getParams()[0] === 'timeline' &&
                     $this->dispatcher->getParams()[1] !== $this->view->today
                 ) {
@@ -333,10 +337,11 @@ class SchemesComponent extends BaseComponent
 
     protected function replaceColumns($dataArr)
     {
-        if (!$this->view->isWatchlist) {
-            if (count($this->watchlists) === 0) {
-                $this->watchlists = $this->schemesPackage->getWatchlistByAccountId();
-            }
+        if ($this->access->auth->check() &&
+            !$this->view->isWatchlist &&
+            count($this->watchlists) === 0
+        ) {
+            $this->watchlists = $this->schemesPackage->getWatchlistByAccountId();
         }
 
         foreach ($dataArr as $dataKey => &$data) {
