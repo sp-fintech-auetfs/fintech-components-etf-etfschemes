@@ -215,7 +215,7 @@ class SchemesComponent extends BaseComponent
                     unset($categories[$categoryId]);
                 }
 
-                $category['name'] = $parents[$category['parent_id']]['name'] . ': ' . $category['name'];
+                $category['name'] = $parents[$category['parent_id']]['name'] . ':' . $category['name'];
             } else {
                 if (!isset($parents[$category['parent_id']])) {
                     $parents[$categoryId] = $categories[$categoryId];
@@ -359,6 +359,14 @@ class SchemesComponent extends BaseComponent
 
             if (!isset($data['day_trajectory'])) {
                 $data['day_trajectory'] = '-';
+            }
+
+            if (!isset($data['day_cagr'])) {
+                $data['day_cagr'] = '-';
+            }
+
+            if (!isset($data['start_date'])) {
+                $data['start_date'] = '-';
             }
 
             foreach (['year_rr',
