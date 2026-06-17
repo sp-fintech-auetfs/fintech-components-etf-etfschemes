@@ -33,7 +33,7 @@ class SchemesComponent extends BaseComponent
 
         $this->amcsPackage = $this->usePackage(EtfAmcs::class);
 
-        $this->setModuleSettings(true);
+        $this->setModuleSettings();
 
         $this->setModuleSettingsData([
                 'apis' => $this->schemesPackage->getAvailableApis(true, false),
